@@ -1,0 +1,17 @@
+# PlatformIO
+firmware/.pio/
+
+# Python
+host/.venv/
+host/__pycache__/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.bin
+*.elf
+*.hex
