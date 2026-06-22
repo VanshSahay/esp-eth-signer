@@ -39,9 +39,14 @@ class DeviceConnection:
     def __init__(self, port: str, baud: int = 115200, timeout: float = 60.0):
         self.port = port
         self.ser = serial.Serial(port, baud, timeout=timeout)
-        # Drain any stale boot output from the device
-        time.sleep(2)
-        self.ser.reset_input_buffer()
+        # Drain all boot output — wait for the "ready" message
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            line = self.ser.readline()
+            if b'"ready"' in line:
+                break
+            if not line and time.time() > deadline - 5:
+                break
 
     def _send(self, obj: dict) -> None:
         line = json.dumps(obj) + "\n"
@@ -414,7 +419,21 @@ def main():
         print("\nBroadcasting transaction...")
         tx_hash = w3.eth.send_raw_transaction(signed_hex)
         print(f"  TX hash: {tx_hash.hex()}")
-        print(f"  Explorer: https://etherscan.io/tx/{tx_hash.hex()}")
+        # Chain-aware explorer URL
+        explorers = {
+            1: "https://etherscan.io",
+            5: "https://goerli.etherscan.io",
+            11155111: "https://sepolia.etherscan.io",
+            17000: "https://holesky.etherscan.io",
+            137: "https://polygonscan.com",
+            42161: "https://arbiscan.io",
+            421614: "https://sepolia.arbiscan.io",
+            10: "https://optimistic.etherscan.io",
+            8453: "https://basescan.org",
+            84532: "https://sepolia.basescan.org",
+        }
+        base = explorers.get(args.chain_id, "https://etherscan.io")
+        print(f"  Explorer: {base}/tx/{tx_hash.hex()}")
     else:
         print("\nNot broadcasting (add --broadcast to submit).")
 

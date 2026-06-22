@@ -18,7 +18,7 @@
 
 #define HAS_OLED      0   // SSD1306 0.96" 128×64 I²C OLED
 #define HAS_BUTTONS   0   // confirm + reject tactile push-buttons
-#define HAS_LED       0   // status LED + current-limiting resistor
+#define HAS_LED       1   // status LED + current-limiting resistor
 
 // ================================================================
 // 2. Pin mapping (board-specific)

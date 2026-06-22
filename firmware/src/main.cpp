@@ -90,14 +90,8 @@ static String hex_encode(const uint8_t* data, size_t len);
 // ================================================================
 
 void setup() {
-#if defined(ESP8266)
-    ESP.wdtDisable();   // secp256k1_context_create() does pure C
-                        // computation with no yield points — the
-                        // default ~3 s WDT timeout is too tight
-#endif
-
     Serial.begin(SERIAL_BAUD);
-    delay(100);          // let UART settle; also feeds WDT on ESP8266
+    delay(100);          // let UART settle; also feeds WDT
 
     // --- GPIO ---
 #if HAS_LED
@@ -121,8 +115,11 @@ void setup() {
     if (!g_has_key) {
         oled_show("Generating key...");
 
+        // Feed WDT before long C call
+        yield();
         secp256k1_context* vctx =
             secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+        yield();
         if (!vctx) {
             Serial.println(F("{\"ok\":false,\"error\":\"OOM at keygen\"}"));
             oled_show("FATAL: OOM", "keygen context");
@@ -144,8 +141,9 @@ void setup() {
     }
 
     // --- Create signing context ---
-    delay(10);
+    yield();
     g_ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+    yield();
     if (!g_ctx) {
         Serial.print(F("{\"ok\":false,\"error\":\"OOM sign ctx, heap="));
         Serial.print(ESP.getFreeHeap());
@@ -195,9 +193,7 @@ void loop() {
             line = "";
     }
 
-#if defined(ESP8266)
-    delay(1);  // feed software WDT
-#endif
+    delay(1);  // feed WDT, yield to background tasks
 }
 
 // ================================================================
@@ -315,9 +311,7 @@ static bool generate_key(secp256k1_context* vctx) {
 #endif
 
     for (int attempt = 0; attempt < 256; attempt++) {
-#if defined(ESP8266)
-        delay(0);  // feed WDT
-#endif
+        yield();  // feed WDT
         for (int i = 0; i < 32; i += 4) {
             uint32_t r = PLATFORM_RNG() ^ extra;
             extra = (extra << 13) | (extra >> 19);
@@ -445,9 +439,9 @@ static void cmd_sign(const JsonObject& root) {
 #if HAS_BUTTONS
     confirmed = wait_for_confirm(SIGN_TIMEOUT_MS);
 #else
-    // No buttons wired — short delay then auto-confirm.
+    // No buttons wired — delay then auto-confirm.
     // WARNING: wire buttons before using with real value!
-    delay(2000);
+    delay(5000);
     confirmed = true;
 #endif
 
